@@ -433,6 +433,13 @@ code, .mono { font-family: var(--font-mono); font-size: 0.9em; }
 .switch input:checked + .switch__track::after { transform: translateX(1.05rem); }
 .switch input:focus-visible + .switch__track { outline: 2px solid var(--color-focus); outline-offset: 2px; }
 
+/* 表格内的小号开关 */
+.switch--sm .switch__track { width: 2rem; height: 1.15rem; }
+.switch--sm .switch__track::after {
+  width: calc(1.15rem - 6px); height: calc(1.15rem - 6px);
+}
+.switch--sm input:checked + .switch__track::after { transform: translateX(0.85rem); }
+
 /* ── 日志 ── */
 .logs { border: 1px solid var(--color-rule); border-radius: var(--radius-card); overflow: hidden; }
 .logs__head {
