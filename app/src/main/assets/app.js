@@ -110,6 +110,8 @@
   var setDefaultModel = document.getElementById("setDefaultModel");
   var setAutoStart = document.getElementById("setAutoStart");
   var setUseSearch = document.getElementById("setUseSearch");
+  var setShowFloat = document.getElementById("setShowFloat");
+  var setBattery = document.getElementById("setBattery");
 
   function refreshSettings() {
     var raw = call("getSettings");
@@ -121,6 +123,40 @@
     setDefaultModel.value = s.defaultModel || "glm-5";
     setAutoStart.checked = !!s.autoStart;
     setUseSearch.checked = !!s.useSearch;
+    setShowFloat.checked = !!s.showFloat;
+    // 电池优化状态从原生实时查
+    try { setBattery.checked = !!call("isIgnoringBattery"); } catch (e) {}
+  }
+
+  // 悬浮窗开关：即时生效，并申请权限
+  if (setShowFloat) {
+    setShowFloat.addEventListener("change", function () {
+      if (setShowFloat.checked) {
+        var has = call("hasFloatPermission");
+        if (!has) {
+          call("requestOverlay");
+          toast("请授予悬浮窗权限后返回", false);
+        }
+        call("showFloat");
+        toast("悬浮窗已开启");
+      } else {
+        call("hideFloat");
+        toast("悬浮窗已关闭");
+      }
+    });
+  }
+
+  // 保活开关：触发忽略电池优化授权
+  if (setBattery) {
+    setBattery.addEventListener("change", function () {
+      if (setBattery.checked) {
+        call("requestIgnoreBattery");
+        toast("请在弹窗中允许忽略电池优化", false);
+      } else {
+        toast("请到系统设置手动恢复电池优化", false);
+        setBattery.checked = true;
+      }
+    });
   }
 
   document.getElementById("saveSettings").addEventListener("click", function () {
@@ -129,7 +165,8 @@
       apiKey: setApiKey.value.trim(),
       autoStart: setAutoStart.checked,
       useSearch: setUseSearch.checked,
-      defaultModel: setDefaultModel.value
+      defaultModel: setDefaultModel.value,
+      showFloat: setShowFloat ? setShowFloat.checked : false
     });
     call("saveSettings", payload);
     toast("设置已保存");
