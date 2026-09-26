@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="cobalt">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>当贝 API 网关</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav__inner">
+    <div class="nav__brand">
+      <span class="nav__mark" aria-hidden="true"></span>
+      <span class="nav__word">当贝网关</span>
+    </div>
+    <div class="nav__tabs" role="tablist" aria-label="视图">
+      <button class="tab is-active" role="tab" aria-selected="true" data-view="console">控制台</button>
+      <button class="tab" role="tab" aria-selected="false" data-view="models">模型</button>
+      <button class="tab" role="tab" aria-selected="false" data-view="settings">设置</button>
+    </div>
+    <button class="btn btn--primary nav__cta" id="navToggle">启动网关</button>
+  </div>
+</nav>
+
+<main class="wrap">
+
+  <section class="view is-active" id="view-console">
+
+    <header class="head">
+      <p class="label">GATEWAY · 本地 OpenAI 兼容</p>
+      <h1 class="head__title">把当贝 AI，接进任何 OpenAI 客户端。</h1>
+      <p class="head__lede">登录一次保存 token，网关照常跑。之后把它当任意一个 OpenAI 端点用 —— base URL 是 <code>http://本机IP:端口/v1</code>，模型名照下面这张表选。</p>
+    </header>
+
+    <div class="statusbar" id="statusbar">
+      <div class="statusbar__dot" id="statusDot"></div>
+      <div class="statusbar__text">
+        <span class="statusbar__state" id="statusState">未运行</span>
+        <span class="statusbar__meta label" id="statusMeta">端口 9980 · 已处理 0 次请求</span>
+      </div>
+      <div class="statusbar__chip" id="tokenChip">未登录</div>
+    </div>
+
+    <section class="frame reveal" id="frame-run">
+      <figure class="shot">
+        <div class="shot__bar">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="shot__file">gateway · 进程</span>
+          <span class="status--ok" id="runBadge">IDLE</span>
+        </div>
+        <div class="shot__body">
+          <div class="runrow">
+            <button class="btn btn--primary" id="runBtn">启动网关</button>
+            <button class="btn" id="restartBtn">重启</button>
+            <button class="btn" id="stopBtn">停止</button>
+          </div>
+          <div class="kv">
+            <div class="kv__k label">BASE URL</div>
+            <div class="kv__v"><code id="baseUrl">http://0.0.0.0:9980/v1</code>
+              <button class="copy" data-copy="baseUrl" title="复制">复制</button></div>
+          </div>
+          <div class="kv">
+            <div class="kv__k label">API KEY</div>
+            <div class="kv__v"><code id="apiKeyShow">sk-dangbei-local</code>
+              <button class="copy" data-copy="apiKeyShow" title="复制">复制</button></div>
+          </div>
+        </div>
+      </figure>
+      <figcaption class="cap">启动后监听 <span class="mono">0.0.0.0</span>，同一 Wi-Fi 下的任何设备都能连。仅本机用就填 <span class="mono">127.0.0.1</span>。</figcaption>
+    </section>
+
+    <section class="frame reveal" id="frame-login">
+      <figure class="shot">
+        <div class="shot__bar">
+          <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+          <span class="shot__file">account · token</span>
+          <span class="status--ok" id="loginBadge">—</span>
+        </div>
+        <div class="shot__body">
+          <p class="hint" id="tokenHint">还没有保存 token。点下面按钮打开登录页，在页面里登录当贝 AI，然后点右上角「保存」。</p>
+          <div class="runrow">
+            <button class="btn btn--primary" id="loginBtn">登录并保存</button>
+            <button class="btn" id="clearTokenBtn">清除 token</button>
+          </div>
+        </div>
+      </figure>
+      <figcaption class="cap">token 从登录后的 Cookie 自动提取，只存本机。失效了重新登录一次即可。</figcaption>
+    </section>
+
+    <section class="frame reveal" id="frame-usage">
+      <div class="demo">
+        <div class="code-card">
+          <div class="code-card__bar">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            <span class="code-card__file">curl.txt</span>
+          </div>
+          <pre class="code"><span class="tok-mut">$</span> curl <span class="tok-str">http://127.0.0.1:9980/v1/chat/completions</span> \
+  -H <span class="tok-str">"Authorization: Bearer sk-dangbei-local"</span> \
+  -H <span class="tok-str">"Content-Type: application/json"</span> \
+  -d <span class="tok-str">'{
+    "model": "glm-5",
+    "messages": [{"role":"user","content":"你好"}],
+    "stream": true
+  }'</span></pre>
+        </div>
+        <p class="demo__cap label">OpenAI 兼容 · 支持 SSE 流式</p>
+      </div>
+      <figcaption class="cap">在 Cherry Studio、NextChat、ChatBox 里把 base URL 填成上面那串、API key 填进去，就能用。</figcaption>
+    </section>
+
+  </section>
+
+  <section class="view" id="view-models">
+    <header class="head">
+      <p class="label">MODELS · 可用模型</p>
+      <h1 class="head__title">模型名带后缀就是开关。</h1>
+      <p class="head__lede">基础名走默认；<code>-think</code> 开深度思考，<code>-search</code> 开联网检索，两个都能拼。不支持的组合会自动降级并在日志里写一行。</p>
+    </header>
+    <div class="tablewrap">
+      <table class="table">
+        <thead>
+          <tr><th>模型</th><th>深度思考</th><th>联网</th></tr>
+        </thead>
+        <tbody id="modelRows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="view" id="view-settings">
+    <header class="head">
+      <p class="label">SETTINGS · 配置与日志</p>
+      <h1 class="head__title">端口、密钥、联网默认值。</h1>
+    </header>
+
+    <div class="form">
+      <div class="field">
+        <label class="label" for="setPort">端口</label>
+        <input class="input" id="setPort" type="number" inputmode="numeric" value="9980" />
+        <p class="field__hint">改完重启网关生效。默认 9980。</p>
+      </div>
+      <div class="field">
+        <label class="label" for="setApiKey">API Key</label>
+        <input class="input" id="setApiKey" type="text" spellcheck="false" />
+        <p class="field__hint">客户端请求头里要带的密钥，随便设。</p>
+      </div>
+      <div class="field">
+        <label class="label" for="setDefaultModel">默认模型</label>
+        <select class="input" id="setDefaultModel"></select>
+        <p class="field__hint">请求不带 model 时用它。</p>
+      </div>
+      <div class="field field--row">
+        <label class="switch">
+          <input type="checkbox" id="setAutoStart" />
+          <span class="switch__track"></span>
+        </label>
+        <div>
+          <div class="label">开机自启</div>
+          <p class="field__hint">重启手机后自动拉起网关。</p>
+        </div>
+      </div>
+      <div class="field field--row">
+        <label class="switch">
+          <input type="checkbox" id="setUseSearch" />
+          <span class="switch__track"></span>
+        </label>
+        <div>
+          <div class="label">默认开启联网</div>
+          <p class="field__hint">当模型名没写 <code>-search</code> 时是否默认联网。</p>
+        </div>
+      </div>
+      <button class="btn btn--primary" id="saveSettings">保存设置</button>
+    </div>
+
+    <section class="logs">
+      <div class="logs__head">
+        <span class="label">运行日志</span>
+        <button class="btn btn--ghost" id="clearLogs">清空</button>
+      </div>
+      <pre class="logs__body mono" id="logBody">—</pre>
+    </section>
+  </section>
+
+</main>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
