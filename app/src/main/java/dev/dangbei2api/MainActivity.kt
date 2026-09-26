@@ -207,6 +207,10 @@ class MainActivity : AppCompatActivity() {
                 if (j.has("autoStart")) settings.autoStart = j.optBoolean("autoStart", true)
                 if (j.has("useSearch")) settings.useSearch = j.optBoolean("useSearch", false)
                 if (j.has("defaultModel")) settings.defaultModel = j.optString("defaultModel", "glm-5")
+                if (j.has("showFloat")) {
+                    settings.showFloat = j.optBoolean("showFloat", false)
+                    runOnUiThread { syncFloat() }
+                }
                 Logger.log("设置已保存")
             } catch (e: Exception) {
                 Logger.log("设置保存失败：${e.message}")
