@@ -90,12 +90,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** 申请忽略电池优化（后台保活） */
+    @SuppressLint("BatteryLife")
     private fun requestIgnoreBattery() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val pm = getSystemService(POWER_SERVICE) as PowerManager
             if (!pm.isIgnoringBatteryOptimizations(packageName)) {
                 try {
-                    @SuppressLint("BatteryLife")
                     startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
                         Uri.parse("package:$packageName")))
                 } catch (_: Exception) {
