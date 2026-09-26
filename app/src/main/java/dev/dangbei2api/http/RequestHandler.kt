@@ -103,10 +103,20 @@ class RequestHandler(
             return
         }
 
+        // 先建会话（可能失败），成功后再开流。避免"已返回 200 却无内容"的空流。
+        val convId: String
+        try {
+            convId = client.createConversation(token)
+        } catch (e: Exception) {
+            Logger.log("建会话失败：${e.message}")
+            val (status, type) = classifyError(e.message ?: "")
+            writer.writeJson(status, errorJson(e.message ?: "upstream error", type))
+            return
+        }
+
         writer.beginChunked()
         try {
             writer.writeChunk(sseChunk(id, created, outModel, mapOf("role" to "assistant")))
-            val convId = client.createConversation(token)
             val reply = client.chatStream(token, convId, prompt, parsed.code, search, parsed.think) { delta ->
                 if (delta.isNotEmpty()) {
                     writer.writeChunk(sseChunk(id, created, outModel, mapOf("content" to delta)))
@@ -139,7 +149,12 @@ class RequestHandler(
         }
         val m = Models.byId(base)
         val code = m?.code ?: base
-        if (m != null && !m.supportThink) think = false
+        if (m != null && !m.supportThink) {
+            think = false
+        } else {
+            // 模型支持思考：叠加 App 里"深度思考"开关的全局设置
+            if (settings.isThinkOn(base)) think = true
+        }
         if (!search) search = settings.useSearch
         return ParsedModel(code, think, search)
     }
