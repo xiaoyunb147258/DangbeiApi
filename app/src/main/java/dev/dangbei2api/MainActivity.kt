@@ -227,6 +227,15 @@ class MainActivity : AppCompatActivity() {
         }
 
         @JavascriptInterface
+        fun getModelThink(): String = settings.modelThink
+
+        @JavascriptInterface
+        fun setModelThink(modelId: String, on: Boolean) {
+            settings.setThink(modelId, on)
+            Logger.log("模型 $modelId 深度思考=${if (on) "开" else "关"}")
+        }
+
+        @JavascriptInterface
         fun getLogs(): String {
             val arr = JSONArray()
             Logger.recent().forEach { arr.put(it) }
