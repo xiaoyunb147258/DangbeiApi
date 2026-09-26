@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
 import android.provider.Settings
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -27,6 +28,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private lateinit var settings: SettingsStore
     private lateinit var tokenStore: TokenStore
+    private var floating: FloatingWindow? = null
 
     private val notifPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
@@ -73,11 +75,52 @@ class MainActivity : AppCompatActivity() {
         })
 
         requestNotificationPermission()
+    }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-            !Settings.canDrawOverlays(this)
-        ) {
-            // 悬浮窗权限非必需，静默跳过（不强制跳设置）
+    /** 申请悬浮窗权限（跳到系统设置页） */
+    private fun requestOverlayPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            try {
+                startActivity(Intent(
+                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:$packageName")
+                ))
+            } catch (_: Exception) {}
+        }
+    }
+
+    /** 申请忽略电池优化（后台保活） */
+    private fun requestIgnoreBattery() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val pm = getSystemService(POWER_SERVICE) as PowerManager
+            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                try {
+                    @SuppressLint("BatteryLife")
+                    startActivity(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                        Uri.parse("package:$packageName")))
+                } catch (_: Exception) {
+                    // 兜底：跳电池优化列表
+                    try {
+                        startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                    } catch (_: Exception2) {}
+                }
+            }
+        }
+    }
+
+    /** 同步悬浮窗显示状态 */
+    private fun syncFloat() {
+        if (settings.showFloat) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+                return  // 没权限，等用户授权后再显示
+            }
+            if (floating == null) floating = FloatingWindow(this)
+            val port = if (GatewayService.running) GatewayService.currentPort else settings.port
+            val state = if (GatewayService.running) "运行中" else "已停止"
+            floating?.show("当贝网关 · $state\n${NetUtil.getLocalIp()}:$port")
+        } else {
+            floating?.hide()
+            floating = null
         }
     }
 
@@ -99,6 +142,8 @@ class MainActivity : AppCompatActivity() {
             } else {
                 startService(svc)
             }
+            // 服务状态变化后同步悬浮窗
+            webView.postDelayed({ syncFloat() }, 800)
         } catch (e: Exception) {
             Logger.log("服务操作失败：${e.message}")
         }
@@ -196,9 +241,58 @@ class MainActivity : AppCompatActivity() {
             tokenStore.clear()
             Logger.log("token 已清除")
         }
+
+        @JavascriptInterface
+        fun requestIgnoreBattery() {
+            runOnUiThread { requestIgnoreBattery() }
+        }
+
+        @JavascriptInterface
+        fun requestOverlay() {
+            runOnUiThread { requestOverlayPermission() }
+        }
+
+        @JavascriptInterface
+        fun showFloat() {
+            settings.showFloat = true
+            runOnUiThread { syncFloat() }
+            Logger.log("悬浮窗已开启")
+        }
+
+        @JavascriptInterface
+        fun hideFloat() {
+            settings.showFloat = false
+            runOnUiThread {
+                floating?.hide()
+                floating = null
+            }
+            Logger.log("悬浮窗已关闭")
+        }
+
+        @JavascriptInterface
+        fun hasFloatPermission(): Boolean {
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+                Settings.canDrawOverlays(this@MainActivity)
+            else true
+        }
+
+        @JavascriptInterface
+        fun isIgnoringBattery(): Boolean {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
+            val pm = getSystemService(POWER_SERVICE) as PowerManager
+            return pm.isIgnoringBatteryOptimizations(packageName)
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 从权限设置页返回时，若开了悬浮窗但没显示，补显示
+        syncFloat()
     }
 
     override fun onDestroy() {
+        floating?.hide()
+        floating = null
         webView.destroy()
         super.onDestroy()
     }
