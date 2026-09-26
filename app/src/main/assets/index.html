@@ -172,6 +172,26 @@
           <p class="field__hint">当模型名没写 <code>-search</code> 时是否默认联网。</p>
         </div>
       </div>
+      <div class="field field--row">
+        <label class="switch">
+          <input type="checkbox" id="setShowFloat" />
+          <span class="switch__track"></span>
+        </label>
+        <div>
+          <div class="label">显示悬浮窗</div>
+          <p class="field__hint">在屏幕上常驻显示网关地址，可拖动。需悬浮窗权限。</p>
+        </div>
+      </div>
+      <div class="field field--row">
+        <label class="switch">
+          <input type="checkbox" id="setBattery" />
+          <span class="switch__track"></span>
+        </label>
+        <div>
+          <div class="label">后台保活（忽略电池优化）</div>
+          <p class="field__hint">防止系统休眠时杀掉网关。需授权。</p>
+        </div>
+      </div>
       <button class="btn btn--primary" id="saveSettings">保存设置</button>
     </div>
 
