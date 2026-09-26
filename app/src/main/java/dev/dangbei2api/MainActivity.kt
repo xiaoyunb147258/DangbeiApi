@@ -102,7 +102,7 @@ class MainActivity : AppCompatActivity() {
                     // 兜底：跳电池优化列表
                     try {
                         startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-                    } catch (_: Exception2) {}
+                    } catch (_: Throwable) {}
                 }
             }
         }
