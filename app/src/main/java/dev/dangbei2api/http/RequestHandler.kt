@@ -98,7 +98,8 @@ class RequestHandler(
                 writer.writeJson(200, completionJson(id, created, outModel, reply))
             } catch (e: Exception) {
                 Logger.log("请求失败：${e.message}")
-                writer.writeJson(500, errorJson(e.message ?: "upstream error", "api_error"))
+                val (status, type) = classifyError(e.message ?: "")
+                writer.writeJson(status, errorJson(e.message ?: "upstream error", type))
             }
             return
         }
@@ -244,4 +245,22 @@ class RequestHandler(
 
     private fun errorJson(msg: String, type: String): String =
         JSONObject().put("error", JSONObject().put("message", msg).put("type", type)).toString()
+
+    /**
+     * 把上游错误分类成 OpenAI 风格的 (HTTP 状态码, type)。
+     * token 失效 → 401，帮用户定位问题。
+     */
+    private fun classifyError(msg: String): Pair<Int, String> {
+        val m = msg.lowercase()
+        return when {
+            m.contains("token") || m.contains("未登录") || m.contains("登录") ||
+                m.contains("401") || m.contains("unauthorized") || m.contains("失效") ->
+                Pair(401, "invalid_api_key")
+            m.contains("timeout") || m.contains("超时") ->
+                Pair(504, "timeout_error")
+            m.contains("未收到") || m.contains("空响应") ->
+                Pair(502, "upstream_error")
+            else -> Pair(500, "api_error")
+        }
+    }
 }
