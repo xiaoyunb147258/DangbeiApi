@@ -38,16 +38,29 @@ class LoginActivity : AppCompatActivity() {
         root.setBackgroundColor(Color.parseColor("#0E1116"))
 
         webView = WebView(this)
+        // 关键：伪装成手机浏览器 UA，让当贝返回移动版页面（否则是 PC 版，巨大且无法操作）
+        val mobileUa = "Mozilla/5.0 (Linux; Android 13; Pixel 7) " +
+            "AppleWebKit/537.36 (KHTML, like Gecko) " +
+            "Chrome/120.0.0.0 Mobile Safari/537.36"
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
             databaseEnabled = true
             loadWithOverviewMode = true
             useWideViewPort = true
+            userAgentString = mobileUa
+            // 允许缩放，修复"放大了没法缩小"的问题
+            setSupportZoom(true)
+            builtInZoomControls = true
+            displayZoomControls = false
+            textZoom = 100
         }
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
         webView.webViewClient = WebViewClient()
+
+        // 桌面版兜底：若还是溢出，允许双指自由缩放
+        webView.isScrollbarFadingEnabled = false
 
         val lp = FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
