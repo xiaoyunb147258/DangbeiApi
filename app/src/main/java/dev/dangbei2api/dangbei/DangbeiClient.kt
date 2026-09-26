@@ -31,7 +31,7 @@ class DangbeiClient {
 
     private val http = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.MILLISECONDS)   // SSE 长连接
+        .readTimeout(300, TimeUnit.SECONDS)   // SSE 长连接，但兜底 5 分钟，防止永久挂起
         .writeTimeout(30, TimeUnit.SECONDS)
         .build()
 
@@ -108,7 +108,14 @@ class DangbeiClient {
         deepThink: Boolean = false,
         onDelta: ((String) -> Unit)? = null
     ): String {
-        val uuid = generateId(token)
+        // uuid 仅作消息标识，generateId 失败时用本地随机值兜底，避免整个聊天失败
+        val uuid = try {
+            val id = generateId(token)
+            if (id.isNullOrEmpty()) java.util.UUID.randomUUID().toString().replace("-", "") else id
+        } catch (e: Exception) {
+            Logger.log("generateId 失败，使用本地 uuid：${e.message}")
+            java.util.UUID.randomUUID().toString().replace("-", "")
+        }
 
         val chatOption = JSONObject().apply {
             put("searchKnowledge", search)
@@ -150,49 +157,52 @@ class DangbeiClient {
                 throw ApiException("chat HTTP ${resp.code}: ${err.take(300)}")
             }
             val reader = BufferedReader(InputStreamReader(resp.body!!.byteStream(), Charsets.UTF_8))
-            var curEvent = ""
             val dataBuf = StringBuilder()
 
-            fun flushEvent() {
-                if (curEvent == "conversation.message.delta" && dataBuf.isNotEmpty()) {
-                    try {
-                        val j = JSONObject(dataBuf.toString())
-                        val type = j.optString("type")
-                        val content = j.optString("content")
-                        // 只取正式回答（answer），过滤 progress（如"联网搜索中..."）
-                        if (type == "answer" && content.isNotEmpty()) {
-                            full.append(content)
-                            onDelta?.invoke(content)
-                        }
-                    } catch (e: Exception) {
-                        // 非法 JSON 行忽略
+            // 解析一条 data 负载：取 type==answer 的 content；不依赖 event 名，避免漏内容
+            fun handleData(raw: String) {
+                val t = raw.trim()
+                if (t.isEmpty() || t == "[DONE]") return
+                try {
+                    val j = JSONObject(t)
+                    val type = j.optString("type")
+                    val contentType = j.optString("content_type")
+                    val content = j.optString("content")
+                    // 只取正式回答：type=answer 且 content_type 非 progress（过滤"联网搜索中…"中间态）
+                    if (type == "answer" && contentType != "progress" && content.isNotEmpty()) {
+                        full.append(content)
+                        onDelta?.invoke(content)
                     }
+                } catch (e: Exception) {
+                    // 非 JSON（可能是多行 data 的片段），先忽略
                 }
-                dataBuf.setLength(0)
             }
 
             var line: String?
             while (reader.readLine().also { line = it } != null) {
                 val l = line!!
                 when {
-                    l.startsWith("event:") -> {
-                        flushEvent()
-                        curEvent = l.removePrefix("event:").trim()
+                    l.isEmpty() -> {
+                        // 空行 = 一个 SSE 事件结束
+                        if (dataBuf.isNotEmpty()) {
+                            handleData(dataBuf.toString())
+                            dataBuf.setLength(0)
+                        }
                     }
                     l.startsWith("data:") -> {
                         dataBuf.append(l.removePrefix("data:").trim())
                     }
-                    l.isEmpty() -> {
-                        flushEvent()
-                        curEvent = ""
+                    l.startsWith("event:") -> {
+                        // event 名不需要，跳过（靠 data 的 type 字段判断）
                     }
                     else -> {
-                        // 有的实现 data 多行，直接续接
-                        dataBuf.append(l)
+                        // data 的多行续接
+                        dataBuf.append(l.trim())
                     }
                 }
             }
-            flushEvent()
+            // 收尾：最后一条没有 trailing 空行
+            if (dataBuf.isNotEmpty()) handleData(dataBuf.toString())
         }
 
         if (full.isEmpty()) throw ApiException("未收到有效回答（可能 token 失效或模型不支持）")
