@@ -180,14 +180,35 @@
     if (!rows || !raw) return;
     var arr;
     try { arr = JSON.parse(raw); } catch (e) { return; }
+    // 拉取每个模型当前的思考开关状态
+    var thinkMap = {};
+    try { thinkMap = JSON.parse(call("getModelThink") || "{}"); } catch (e) {}
     rows.innerHTML = "";
     arr.forEach(function (m) {
       var tr = document.createElement("tr");
       var td1 = document.createElement("td");
       td1.textContent = m.id;
       var td2 = document.createElement("td");
-      td2.className = m.think ? "yes" : "no";
-      td2.textContent = m.think ? "支持" : "—";
+      if (m.think) {
+        // 支持思考 → 渲染开关
+        var label = document.createElement("label");
+        label.className = "switch switch--sm";
+        var cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = !!thinkMap[m.id];
+        cb.addEventListener("change", function () {
+          call("setModelThink", m.id, cb.checked);
+          toast((cb.checked ? "已开启" : "已关闭") + " " + (m.label || m.id) + " 深度思考");
+        });
+        var track = document.createElement("span");
+        track.className = "switch__track";
+        label.appendChild(cb);
+        label.appendChild(track);
+        td2.appendChild(label);
+      } else {
+        td2.className = "no";
+        td2.textContent = "—";
+      }
       var td3 = document.createElement("td");
       td3.className = "yes";
       td3.textContent = "支持";
